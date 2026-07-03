@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ephemera — Stories</title>
+<style>
+  :root {
+    --ink: #0D0E12;
+    --surface: #16181F;
+    --surface-2: #1D202A;
+    --line: #2A2D38;
+    --text: #F5F3EE;
+    --text-muted: #8B8E99;
+    --amber: #F2A93B;
+    --amber-dim: #C97A22;
+    --danger: #E5484D;
+    --font-display: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #app {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+  }
+
+  .es-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .es-brand {
+    font-family: var(--font-display);
+    font-size: 26px;
+    letter-spacing: 0.3px;
+  }
+
+  .es-caption {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* ---------- Story bar ---------- */
+
+  .es-bar {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding: 10px 2px 16px;
+    scrollbar-width: none;
+  }
+  .es-bar::-webkit-scrollbar { display: none; }
+
+  .es-col {
+    flex: 0 0 auto;
+    width: 68px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .es-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.3px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .es-label--self { color: var(--text); }
+
+  .es-add,
+  .es-item {
+    flex: 0 0 auto;
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+    position: relative;
+  }
+
+  .es-add {
+    border: 2px dashed #4A4D57;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color .18s ease, color .18s ease, transform .12s ease;
+  }
+  .es-add:hover { border-color: var(--amber); color: var(--amber); }
+  .es-add:active { transform: scale(0.94); }
+
+  .es-item {
+    padding: 2.5px;
+    background: conic-gradient(from 0deg, var(--amber), var(--amber-dim) 28%, var(--amber) 55%, var(--amber-dim) 80%, var(--amber));
+    animation: es-spin 7s linear infinite;
+    transition: transform .12s ease;
+  }
+  .es-item:active { transform: scale(0.94); }
+  .es-item.es-item--viewed {
+    background: var(--line);
+    animation: none;
+  }
+
+  @keyframes es-spin {
+    to { transform: rotate(360deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .es-item { animation: none; }
+  }
+
+  .es-thumb {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2.5px solid var(--ink);
+    display: block;
+  }
+
+  .es-empty-hint {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 4px 2px 0;
+  }
+  .es-empty-hint[hidden] { display: none; }
+
+  .es-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    background: var(--surface-2);
+    border: 1px solid var(--danger);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 100;
+    max-width: 90vw;
+  }
+  .es-toast[hidden] { display: none; }
+
+  /* ---------- Viewer ---------- */
+
+  .es-viewer {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+  }
+  .es-viewer[hidden] { display: none; }
+
+  .es-progress-row {
+    display: flex;
+    gap: 4px;
+    padding: 10px 10px 0;
+  }
+
+  .es-progress-track {
+    flex: 1;
+    height: 2.5px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .es-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--amber);
+  }
+
+  .es-viewer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+  }
+
+  .es-time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: rgba(245,243,238,0.8);
+  }
+
+  .es-viewer-actions { display: flex; gap: 6px; }
+
+  .es-icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .es-icon-btn:hover { background: rgba(255,255,255,0.16); }
+  .es-icon-btn.es-icon-btn--danger:hover { background: rgba(229,72,77,0.25); color: var(--danger); }
+
+  .es-media {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .es-media-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+  }
+
+  @media (max-width: 480px) {
+    .es-add, .es-item { width: 58px; height: 58px; }
+    .es-col { width: 58px; }
+    .es-brand { font-size: 22px; }
+  }
+
+  /* ---------- Confirm dialog ---------- */
+
+  .es-confirm {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .es-confirm[hidden] { display: none; }
+
+  .es-confirm-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px;
+    max-width: 320px;
+    width: 100%;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+
+  .es-confirm-text {
+    margin: 0 0 18px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  .es-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .es-btn {
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 7px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .es-btn--ghost {
+    background: transparent;
+    border-color: var(--line);
+    color: var(--text);
+  }
+  .es-btn--ghost:hover { background: var(--surface-2); }
+  .es-btn--danger {
+    background: var(--danger);
+    color: #fff;
+  }
+  .es-btn--danger:hover { background: #c93c40; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="es-header">
+    <span class="es-brand">Ephemera</span>
+    <span class="es-caption">Stories vanish after 24h</span>
+  </div>
+
+  <div class="es-bar" id="storyBar">
+    <div class="es-col">
+      <button class="es-add" id="addBtn" aria-label="Add a story">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <span class="es-label es-label--self">Your story</span>
+    </div>
+  </div>
+
+  <div class="es-empty-hint" id="emptyHint">No stories yet — tap + to add one.</div>
+
+  <input type="file" id="fileInput" accept="image/*" hidden />
+  <div class="es-toast" id="toast" hidden></div>
+</div>
+
+<div class="es-viewer" id="viewer" hidden>
+  <div class="es-progress-row" id="progressRow"></div>
+  <div class="es-viewer-head">
+    <span class="es-time" id="viewerMeta"></span>
+    <div class="es-viewer-actions">
+      <button class="es-icon-btn es-icon-btn--danger" id="deleteBtn" aria-label="Delete story">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+      </button>
+      <button class="es-icon-btn" id="closeBtn" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="es-media" id="mediaArea">
+    <img id="viewerImg" class="es-media-img" draggable="false" alt="Story" />
+  </div>
+</div>
+
+<div class="es-confirm" id="confirmDialog" hidden>
+  <div class="es-confirm-card">
+    <p class="es-confirm-text">Delete this story? This can't be undone.</p>
+    <div class="es-confirm-actions">
+      <button class="es-btn es-btn--ghost" id="confirmCancel">Cancel</button>
+      <button class="es-btn es-btn--danger" id="confirmDelete">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "ephemera:stories";
+  var DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+  var STORY_MS = 3000; // 3 seconds per story
+  var MAX_W = 1080;
+  var MAX_H = 1920;
+
+  var storyBar = document.getElementById("storyBar");
+  var addBtn = document.getElementById("addBtn");
+  var fileInput = document.getElementById("fileInput");
+  var emptyHint = document.getElementById("emptyHint");
+  var toastEl = document.getElementById("toast");
+
+  var viewer = document.getElementById("viewer");
+  var progressRow = document.getElementById("progressRow");
+  var viewerMeta = document.getElementById("viewerMeta");
+  var viewerImg = document.getElementById("viewerImg");
+  var mediaArea = document.getElementById("mediaArea");
+  var closeBtn = document.getElementById("closeBtn");
+  var deleteBtn = document.getElementById("deleteBtn");
+  var confirmDialog = document.getElementById("confirmDialog");
+  var confirmCancel = document.getElementById("confirmCancel");
+  var confirmDelete = document.getElementById("confirmDelete");
+
+  var stories = [];        // in-memory mirror of localStorage
+  var viewerIndex = null;  // index of story currently open, or null
+  var rafId = null;
+  var segStart = 0;
+  var pointerStart = { x: 0, y: 0, t: 0 };
+
+  // ---------- persistence ----------
+
+  function loadStories() {
+    var raw;
+    try {
+      raw = localStorage.getItem(STORAGE_KEY);
+    } catch (e) {
+      return [];
+    }
+    if (!raw) return [];
+    var parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      return [];
+    }
+    var now = Date.now();
+    return parsed.filter(function (s) { return s.expiresAt > now; });
+  }
+
+  function saveStories(list) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function persist(list) {
+    stories = list;
+    var ok = saveStories(list);
+    if (!ok) showToast("Storage is full — delete a story to add a new one.");
+    render();
+  }
+
+  // ---------- helpers ----------
+
+  function uid() {
+    return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+  }
+
+  function timeAgo(ts) {
+    var mins = Math.floor((Date.now() - ts) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return mins + "m ago";
+    var hrs = Math.floor(mins / 60);
+    return hrs + "h ago";
+  }
+
+  function timeLeft(expiresAt) {
+    var diff = expiresAt - Date.now();
+    if (diff <= 0) return "expiring";
+    var hrs = Math.floor(diff / 3600000);
+    var mins = Math.floor((diff % 3600000) / 60000);
+    if (hrs > 0) return hrs + "h " + mins + "m left";
+    return mins + "m left";
+  }
+
+  var toastTimer = null;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.hidden = false;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.hidden = true; }, 3500);
+  }
+
+  // Resize/constrain an uploaded image to at most 1080x1920 and return a base64 data URL.
+  function resizeImage(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var ratio = Math.min(1, MAX_W / img.width, MAX_H / img.height);
+          var w = Math.round(img.width * ratio);
+          var h = Math.round(img.height * ratio);
+          var canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          var ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.85));
+        };
+        img.onerror = function () { reject(new Error("Could not read image")); };
+        img.src = e.target.result;
+      };
+      reader.onerror = function () { reject(new Error("Could not read file")); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ---------- pruning ----------
+
+  function pruneExpired() {
+    var now = Date.now();
+    var alive = stories.filter(function (s) { return s.expiresAt > now; });
+    if (alive.length !== stories.length) {
+      stories = alive;
+      saveStories(stories);
+      if (viewerIndex !== null && !stories[viewerIndex]) closeViewer();
+    }
+    render(); // also refreshes "Xm ago" labels even when nothing expired
+  }
+
+  // ---------- rendering: story bar ----------
+
+  function render() {
+    // remove existing story columns (keep the "Your story" add column, which is static markup)
+    var cols = storyBar.querySelectorAll(".es-col:not(:first-child)");
+    cols.forEach(function (el) { el.remove(); });
+
+    stories.forEach(function (story, index) {
+      var col = document.createElement("div");
+      col.className = "es-col";
+
+      var btn = document.createElement("button");
+      btn.className = "es-item" + (story.viewed ? " es-item--viewed" : "");
+      btn.setAttribute("aria-label", "View story from " + timeAgo(story.createdAt));
+      btn.addEventListener("click", function () { openViewer(index); });
+
+      var img = document.createElement("img");
+      img.className = "es-thumb";
+      img.src = story.src;
+      img.alt = "";
+      btn.appendChild(img);
+
+      var label = document.createElement("span");
+      label.className = "es-label";
+      label.textContent = timeAgo(story.createdAt);
+
+      col.appendChild(btn);
+      col.appendChild(label);
+      storyBar.appendChild(col);
+    });
+
+    emptyHint.hidden = stories.length > 0;
+  }
+
+  // ---------- adding a story ----------
+
+  addBtn.addEventListener("click", function () { fileInput.click(); });
+
+  fileInput.addEventListener("change", function () {
+    var file = fileInput.files && fileInput.files[0];
+    fileInput.value = "";
+    if (!file) return;
+    if (file.type.indexOf("image/") !== 0) {
+      showToast("Please choose an image file.");
+      return;
+    }
+    resizeImage(file).then(function (dataUrl) {
+      var now = Date.now();
+      var story = {
+        id: uid(),
+        src: dataUrl,
+        createdAt: now,
+        expiresAt: now + DURATION_MS,
+        viewed: false
+      };
+      persist([story].concat(stories));
+    }).catch(function () {
+      showToast("Could not process that image.");
+    });
+  });
+
+  // ---------- viewer ----------
+
+  function markViewed(index) {
+    if (!stories[index] || stories[index].viewed) return;
+    var next = stories.slice();
+    next[index] = Object.assign({}, next[index], { viewed: true });
+    stories = next;
+    saveStories(stories);
+    render();
+  }
+
+  function buildProgressRow() {
+    progressRow.innerHTML = "";
+    stories.forEach(function () {
+      var track = document.createElement("div");
+      track.className = "es-progress-track";
+      var fill = document.createElement("div");
+      fill.className = "es-progress-fill";
+      track.appendChild(fill);
+      progressRow.appendChild(track);
+    });
+  }
+
+  function setProgressUI() {
+    var fills = progressRow.querySelectorAll(".es-progress-fill");
+    fills.forEach(function (fill, i) {
+      if (i < viewerIndex) fill.style.width = "100%";
+      else if (i > viewerIndex) fill.style.width = "0%";
+      // current index is updated per-frame in the animation loop
+    });
+  }
+
+  function openViewer(index) {
+    viewerIndex = index;
+    buildProgressRow();
+    markViewed(index);
+    setProgressUI();
+    updateViewerMedia();
+    viewer.hidden = false;
+    startSegment();
+  }
+
+  function closeViewer() {
+    viewerIndex = null;
+    viewer.hidden = true;
+    if (rafId) cancelAnimationFrame(rafId);
+  }
+
+  function updateViewerMedia() {
+    var story = stories[viewerIndex];
+    if (!story) { closeViewer(); return; }
+    viewerImg.src = story.src;
+    viewerMeta.textContent = timeAgo(story.createdAt) + " · " + timeLeft(story.expiresAt);
+  }
+
+  function startSegment() {
+    if (rafId) cancelAnimationFrame(rafId);
+    segStart = performance.now();
+    var fills = progressRow.querySelectorAll(".es-progress-fill");
+    var activeFill = fills[viewerIndex];
+
+    function tick(now) {
+      var elapsed = now - segStart;
+      var pct = Math.min(100, (elapsed / STORY_MS) * 100);
+      if (activeFill) activeFill.style.width = pct + "%";
+      if (pct >= 100) {
+        nextStory();
+      } else {
+        rafId = requestAnimationFrame(tick);
+      }
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function nextStory() {
+    if (viewerIndex === null) return;
+    if (viewerIndex + 1 >= stories.length) {
+      closeViewer();
+      return;
+    }
+    viewerIndex += 1;
+    markViewed(viewerIndex);
+    buildProgressRow();
+    // re-mark completed segments after rebuilding the row
+    var fills = progressRow.querySelectorAll(".es-progress-fill");
+    fills.forEach(function (fill, i) {
+      if (i < viewerIndex) fill.style.width = "100%";
+    });
+    updateViewerMedia();
+    startSegment();
+  }
+
+  function prevStory() {
+    if (viewerIndex === null) return;
+    if (viewerIndex - 1 < 0) {
+      startSegment(); // restart the first story instead of going out of bounds
+      return;
+    }
+    viewerIndex -= 1;
+    buildProgressRow();
+    var fills = progressRow.querySelectorAll(".es-progress-fill");
+    fills.forEach(function (fill, i) {
+      if (i < viewerIndex) fill.style.width = "100%";
+    });
+    updateViewerMedia();
+    startSegment();
+  }
+
+  closeBtn.addEventListener("click", closeViewer);
+
+  deleteBtn.addEventListener("click", function () {
+    if (viewerIndex === null) return;
+    if (rafId) cancelAnimationFrame(rafId); // pause playback while the user decides
+    confirmDialog.hidden = false;
+  });
+
+  confirmCancel.addEventListener("click", function () {
+    confirmDialog.hidden = true;
+    if (viewerIndex !== null) startSegment(); // resume playback from the start of this segment
+  });
+
+  confirmDelete.addEventListener("click", function () {
+    confirmDialog.hidden = true;
+    if (viewerIndex === null) return;
+    var id = stories[viewerIndex].id;
+    var next = stories.filter(function (s) { return s.id !== id; });
+    var wasLast = viewerIndex >= next.length;
+    persist(next);
+    if (next.length === 0) {
+      closeViewer();
+    } else {
+      viewerIndex = wasLast ? next.length - 1 : viewerIndex;
+      buildProgressRow();
+      updateViewerMedia();
+      startSegment();
+    }
+  });
+
+  // Tap left/right half to go prev/next, or swipe horizontally.
+  mediaArea.addEventListener("pointerdown", function (e) {
+    pointerStart.x = e.clientX;
+    pointerStart.y = e.clientY;
+    pointerStart.t = Date.now();
+  });
+
+  mediaArea.addEventListener("pointerup", function (e) {
+    var dx = e.clientX - pointerStart.x;
+    var rect = mediaArea.getBoundingClientRect();
+    if (Math.abs(dx) > 40) {
+      if (dx < 0) nextStory(); else prevStory();
+    } else {
+      var relX = e.clientX - rect.left;
+      if (relX < rect.width / 2) prevStory(); else nextStory();
+    }
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (viewer.hidden) return;
+    if (!confirmDialog.hidden) {
+      if (e.key === "Escape") confirmCancel.click();
+      return;
+    }
+    if (e.key === "ArrowRight") nextStory();
+    else if (e.key === "ArrowLeft") prevStory();
+    else if (e.key === "Escape") closeViewer();
+  });
+
+  // ---------- init ----------
+
+  stories = loadStories();
+  render();
+  setInterval(pruneExpired, 30000); // sweep for expired stories every 30s
+})();
+</script>
+
+</body>
+</html>
