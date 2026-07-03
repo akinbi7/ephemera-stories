@@ -4,8 +4,8 @@ A client-side "Story" feature inspired by Instagram / WhatsApp Status: post an i
 circle in a story bar, and it disappears automatically after 24 hours. No backend, no build step —
 one HTML file.
 
-- **Project brief:** <!-- paste the roadmap.sh project page URL here -->
-- **Live demo:** <!-- paste your GitHub Pages URL here, e.g. https://<your-username>.github.io/<your-repo>/ -->
+- **Project brief:** https://roadmap.sh/projects/stories-feature
+- **Live demo:** https://akinbi7.github.io/ephemera-stories/
 
 ## Features
 
